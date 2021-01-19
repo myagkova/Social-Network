@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Страница пользователя {{ username.get_full_name }}{% endblock %}
+{% block header %}Профайл пользователя{% endblock %}
+{% block content %}
+
+<main role="main" class="container">
+    <div class="row">
+            
+        {% include "includes/author_info.html" %}
+        
+
+            <div class="col-md-9">                
+
+                {% for post in page %}
+                    {% include "includes/post_item.html" with post=post %}
+                {% endfor %}   
+
+                {% include "includes/paginator.html" %}
+     </div>
+    </div>
+</main>
+
+{% endblock %}
