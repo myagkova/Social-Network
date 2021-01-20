@@ -1,12 +1,12 @@
 from django.contrib.auth.decorators import login_required
-from django.core.paginator import Paginator
 from django.core.cache import cache
+from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.cache import cache_page
 from django.urls import reverse
+from django.views.decorators.cache import cache_page
 
-from .forms import PostForm, CommentForm
-from .models import Group, Post, User, Comment, Follow
+from .forms import CommentForm, PostForm
+from .models import Comment, Follow, Group, Post, User
 
 
 @cache_page(20)
@@ -61,8 +61,12 @@ def profile(request, username):
     paginator = Paginator(post_list, 5)
     page_number = request.GET.get('page')
     page = paginator.get_page(page_number)
-    following = Follow.objects.filter(
-        user=request.user, author=author).exists()
+    following = False
+    if request.user.is_anonymous:
+        following = False
+    else:
+        following = Follow.objects.filter(
+            user=request.user, author=author).exists()
     return render(
         request,
         "posts/profile.html", {
@@ -86,7 +90,7 @@ def post_view(request, username, post_id):
             "post": post,
             "post_count": posts_count,
             "form": form,
-            "comments": comments
+            "comments": comments,
         }
     )
 

@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
-from django.test import Client, TestCase
 from django.core.cache import cache
+from django.test import Client, TestCase
 
 from posts.models import Group, Post, User
 
@@ -35,7 +35,8 @@ class PostsURLTests(TestCase):
             "/GelyaM/": 200,
             f"/GelyaM/{self.post.id}/": 200,
             f"/GelyaM/{self.post.id}/edit/": 302,
-            "/group/slug_new/": 404
+            "/group/slug_new/": 404,
+            f"/GelyaM/{self.post.id}/comment/": 302
         }
         for url, response_code in url_dict.items():
             with self.subTest():
@@ -50,7 +51,8 @@ class PostsURLTests(TestCase):
             "/GelyaM/": 200,
             f"/GelyaM/{self.post.id}/": 200,
             f"/GelyaM/{self.post.id}/edit/": 200,
-            "/group/slug_new/": 404
+            "/group/slug_new/": 404,
+            f"/GelyaM/{self.post.id}/comment/": 200
         }
         for url, response_code in url_dict.items():
             with self.subTest():

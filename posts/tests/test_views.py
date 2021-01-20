@@ -1,12 +1,13 @@
 import os
 import shutil
 import tempfile
-from django.conf import settings
-from django.core.files.uploadedfile import SimpleUploadedFile
+
 from django import forms
+from django.conf import settings
+from django.core.cache import cache
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
 from django.urls import reverse
-from django.core.cache import cache
 
 from posts.models import Group, Post, User
 
@@ -221,3 +222,58 @@ class PostsModelTests(TestCase):
         )
         response_new = self.client.get(reverse("index"))
         self.assertEqual(response_new.content, response.content)
+
+    def test_following_users(self):
+        new_user = User.objects.create(username="bardem")
+        response = self.authorized_client.get(reverse(
+            "profile_follow", kwargs={"username": "bardem"}
+        )
+        )
+        self.assertEqual(response.status_code, 302)
+        response_profile = self.authorized_client.get(reverse(
+            "profile", kwargs={"username": "bardem"}
+        )
+        )
+        self.assertEqual(response_profile.status_code, 200)
+        following = response_profile.context.get("following")
+        self.assertTrue(following)
+
+    def test_unfollowing_users(self):
+        new_user = User.objects.create(username="bardem")
+        response = self.authorized_client.get(reverse(
+            "profile_unfollow", kwargs={"username": "bardem"}
+        )
+        )
+        self.assertEqual(response.status_code, 302)
+        response_profile = self.authorized_client.get(reverse(
+            "profile", kwargs={"username": "bardem"}
+        )
+        )
+        self.assertEqual(response_profile.status_code, 200)
+        following = response_profile.context.get("following")
+        self.assertFalse(following)
+
+    def test_new_post_for_followers(self):
+        follower = User.objects.create(username="bardem")
+        self.authorized_client.force_login(follower)
+        self.authorized_client.get(reverse(
+            "profile_follow", kwargs={"username": "gelya"}
+        )
+        )
+        self.authorized_client.logout()
+        self.authorized_client.force_login(self.user)
+        form_data = {
+            "group": self.group.id,
+            "text": "Текст поста",
+        }
+        self.authorized_client.post(reverse("new_post"), data=form_data,
+                                    follow=True)
+        self.authorized_client.logout()
+        self.authorized_client.force_login(follower)
+        response = self.authorized_client.get(reverse("follow_index"))
+        self.assertEqual(len(response.context.get('page').object_list), 2)
+        not_follower = User.objects.create(username="hammer")
+        self.authorized_client.logout()
+        self.authorized_client.force_login(not_follower)
+        response = self.authorized_client.get(reverse("follow_index"))
+        self.assertEqual(len(response.context.get('page').object_list), 0)
