@@ -9,7 +9,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from posts.models import Group, Post, User
+from posts.models import Comment, Follow, Group, Post, User
 
 
 class PostsModelTests(TestCase):
@@ -36,8 +36,7 @@ class PostsModelTests(TestCase):
                      b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
                      b'\x00\x00\x00\x2C\x00\x00\x00\x00'
                      b'\x02\x00\x01\x00\x00\x02\x02\x0C'
-                     b'\x0A\x00\x3B'
-                     )
+                     b'\x0A\x00\x3B')
         uploaded = SimpleUploadedFile(
             name='small.gif',
             content=small_gif,
@@ -79,8 +78,7 @@ class PostsModelTests(TestCase):
                      b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
                      b'\x00\x00\x00\x2C\x00\x00\x00\x00'
                      b'\x02\x00\x01\x00\x00\x02\x02\x0C'
-                     b'\x0A\x00\x3B'
-                     )
+                     b'\x0A\x00\x3B')
         uploaded = SimpleUploadedFile(
             name='small.gif',
             content=small_gif,
@@ -225,55 +223,79 @@ class PostsModelTests(TestCase):
 
     def test_following_users(self):
         new_user = User.objects.create(username="bardem")
-        response = self.authorized_client.get(reverse(
+        self.assertFalse(
+            Follow.objects.filter(author=new_user, user=self.user).exists()
+        )
+        response = self.authorized_client.post(reverse(
             "profile_follow", kwargs={"username": "bardem"}
-        )
-        )
-        self.assertEqual(response.status_code, 302)
-        response_profile = self.authorized_client.get(reverse(
-            "profile", kwargs={"username": "bardem"}
-        )
-        )
-        self.assertEqual(response_profile.status_code, 200)
-        following = response_profile.context.get("following")
+        ), follow=True)
+        self.assertEqual(response.status_code, 200)
+        following = response.context.get("following")
         self.assertTrue(following)
+        self.assertTrue(
+            Follow.objects.filter(author=new_user, user=self.user).exists()
+        )
 
     def test_unfollowing_users(self):
         new_user = User.objects.create(username="bardem")
-        response = self.authorized_client.get(reverse(
+        response_follow = self.authorized_client.post(reverse(
+            "profile_follow", kwargs={"username": "bardem"}
+        ), follow=True)
+        following = response_follow.context.get("following")
+        self.assertTrue(
+            Follow.objects.filter(author=new_user, user=self.user).exists()
+        )
+        response_unfollow = self.authorized_client.get(reverse(
             "profile_unfollow", kwargs={"username": "bardem"}
-        )
-        )
-        self.assertEqual(response.status_code, 302)
-        response_profile = self.authorized_client.get(reverse(
-            "profile", kwargs={"username": "bardem"}
-        )
-        )
-        self.assertEqual(response_profile.status_code, 200)
-        following = response_profile.context.get("following")
+        ), follow=True)
+        following = response_unfollow.context.get("following")
         self.assertFalse(following)
+        self.assertFalse(
+            Follow.objects.filter(author=new_user, user=self.user).exists()
+        )
 
     def test_new_post_for_followers(self):
         follower = User.objects.create(username="bardem")
         self.authorized_client.force_login(follower)
         self.authorized_client.get(reverse(
             "profile_follow", kwargs={"username": "gelya"}
-        )
-        )
+        ))
         self.authorized_client.logout()
         self.authorized_client.force_login(self.user)
-        form_data = {
-            "group": self.group.id,
-            "text": "Текст поста",
-        }
-        self.authorized_client.post(reverse("new_post"), data=form_data,
-                                    follow=True)
+        Post.objects.create(
+            text="Тестовый текст",
+            author=self.user
+        )
         self.authorized_client.logout()
         self.authorized_client.force_login(follower)
         response = self.authorized_client.get(reverse("follow_index"))
-        self.assertEqual(len(response.context.get('page').object_list), 2)
+        self.assertEqual(len(response.context.get("page").object_list), 2)
         not_follower = User.objects.create(username="hammer")
         self.authorized_client.logout()
         self.authorized_client.force_login(not_follower)
         response = self.authorized_client.get(reverse("follow_index"))
-        self.assertEqual(len(response.context.get('page').object_list), 0)
+        self.assertEqual(len(response.context.get("page").object_list), 0)
+
+    def test_comments_for_authorized_client(self):
+        new_user = User.objects.create(username="bardem")
+        self.authorized_client.force_login(new_user)
+        self.authorized_client.post(reverse(
+            "add_comment",
+            kwargs={"username": self.user.username,
+                    "post_id": f"{self.post.id}"}
+        ))
+        self.assertTrue(
+            Comment.objects.filter(
+                author=new_user, post_id=f"{self.post.id}").exists()
+        )
+
+    def test_comments_for_guest_client(self):
+        self.guest_client.post(reverse(
+            "add_comment",
+            kwargs={"username": self.user.username,
+                    "post_id": f"{self.post.id}"}
+        ))
+        self.assertFalse(
+            Comment.objects.filter(
+                post_id=f"{self.post.id}").exists()
+        )
