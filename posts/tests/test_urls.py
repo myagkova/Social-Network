@@ -64,8 +64,7 @@ class PostsURLTests(TestCase):
             "group.html": "/group/test-slug/",
             "posts/new.html": "/new/",
             "posts/profile.html": "/GelyaM/",
-            "posts/post.html": f"/GelyaM/{self.post.id}/",
-            "posts/new.html": f"/GelyaM/{self.post.id}/edit/"
+            "posts/post.html": f"/GelyaM/{self.post.id}/"
         }
         for template, reverse_name in templates_url_names.items():
             with self.subTest():
