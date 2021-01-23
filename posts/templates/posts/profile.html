@@ -7,10 +7,9 @@
     <div class="row">
         <div class="col-md-3 mb-3 mt-1">
             <div class="card">
-                        {% include "includes/author_info.html" %} 
+                {% include "includes/author_info.html" %} 
             </div>
-            {% if user.is_authenticated %}
-            {% if user != author %}
+            {% if user.is_authenticated and user != author%}
             <li class="list-group-item">
                 
                 {% if following %}
@@ -26,7 +25,6 @@
                 {% endif %}
                 
             </li> 
-            {% endif %}
             {% endif %}
         </div>
 
