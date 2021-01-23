@@ -45,7 +45,6 @@ def new_post(request):
             post = form.save(commit=False)
             post.author = request.user
             post.save()
-            cache.clear()
             return redirect("index")
         return render(request, "posts/new.html", {"form": form})
 
@@ -60,14 +59,11 @@ def profile(request, username):
     paginator = Paginator(post_list, 5)
     page_number = request.GET.get('page')
     page = paginator.get_page(page_number)
-    followers_count = Follow.objects.filter(
-        author__username=username
-    ).count()
-    following_count = Follow.objects.filter(
-        user__username=username
-    ).count()
+    followers_count = author.follower.count()
+    following_count = author.following.count()
     following = request.user.is_authenticated and Follow.objects.filter(
-        user=request.user, author=author).exists()
+        user=request.user, author=author
+    ).exists()
     return render(
         request,
         "posts/profile.html", {
@@ -87,12 +83,8 @@ def post_view(request, username, post_id):
     posts_count = post.author.posts.count()
     form = CommentForm()
     comments = post.comments.all()
-    followers_count = Follow.objects.filter(
-        author__username=username
-    ).count()
-    following_count = Follow.objects.filter(
-        user__username=username
-    ).count()
+    followers_count = post.author.follower.count()
+    following_count = post.author.following.count()
     return render(
         request, "posts/post.html", {
             "author": post.author,
